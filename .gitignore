@@ -1,0 +1,9 @@
+# Build stuffs
+build/*
+*.o
+
+# Vim stuffs
+*.swp
+*.swm
+*.swn
+*.swo
