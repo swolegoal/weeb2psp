@@ -1,0 +1,426 @@
+#!/usr/bin/env bash
+
+read -d '' _usage <<'EOUSAGE'
+USAGE
+  avc_psp [OPTION] INPUT_DIRECTORY
+
+avc_psp is a script that utilizes FFmpeg to encode AVC that plays on the PSP's
+built-in hardware-accelerated XMB media player in a batch.  If running one
+instance of this script doesn't fully-saturate all of your CPU threads, you can
+safely spawn as many instances of avc_psp are required to fully-saturate all of
+your CPU's threads.  Spawning the instances in separate terminal sessions is
+reccommended for logging and sanity purposes.
+
+This script expects to find valid video in a given input directory.  It then
+encodes the video in an ouput directory.  By default, the output directory name
+is INPUT_DIRECTORY with the suffix "_out" appended to the end.
+
+If a VARS_FILE is defined with the -I/--ingest-def flag, INPUT_DIRECTORY
+parameter is ignored.
+
+OPTIONS
+  -e, --extract-fonts
+      Extract all MKV attachments (all platforms), then install any TTF fonts
+      found (Linux only) and exit.
+
+  -o OUTPUT_DIRECTORY, --out-dir=OUTPUT_DIRECTORY
+      Override the derived output directory name with a custom output path.
+      (Ignored if -I is used.)
+
+  -s, --subtitles
+      Bake in subtitles from the source material as hard subtitles in the output
+      video track.
+
+  -n, --no-subtitles
+      Force subtitles to be disabled, no matter what.
+
+  -l LANG, --lang=LANG
+      Specify a language to look for when picking audio and subtitle tracks.
+      "eng" is the default.
+
+  -I VARS_FILE, --ingest-def=VARS_FILE
+      Source input and output directory names from variables defined in
+      VARS_FILE.  See VARS_FILE section below for more information.
+
+  -h, --help
+      Display this help.
+
+  -d, --dry-run
+      Do a dry run.  Gets -vv info on each file and skips actual processing.
+
+  -v
+      Increase the verbosity level.
+
+VARS_FILE
+  The VARS_FILE is a simple config file that has variables defined in valid Bash
+  shell.
+
+  So far only two variables are recognized:
+    - ingest_dir
+    - out_dir (optional)
+
+  Here's an example config file:
+
+      ingest_dir='batches/initiald/in'
+      out_dir='batches/initiald/out'
+EOUSAGE
+
+usage() { cat <<<"$_usage"; }
+
+oargs='-o o:sI:l:hvdne --long out-dir:,subtitles,ingest-def:,lang:,help,dry-run,no-subtitles,extract-fonts'
+parsed=$(getopt $oargs -- "$@")
+[ $? -ne 0 ] && (usage >&2)
+eval set -- "$parsed"
+
+var_file=0
+do_subs=0
+no_subs=1
+verbose=0
+dry_run=0
+get_fonts=0
+
+while :; do
+  case "$1" in
+    -o | --out-dir)
+      if [ $var_file -eq 1 ]; then
+        (echo 'Can'\''t use both -I and -o!' >&2)
+        (usage >&2)
+        exit 1
+      fi
+      out_dir="$2"
+      shift 2
+      ;;
+    -s | --subtitles)
+      do_subs=1
+      no_subs=0
+      shift
+      ;;
+    -n | --no-subtitles)
+      do_subs=0
+      no_subs=1
+      shift
+      ;;
+    -I | --ingest-def)
+      . "$2"
+      var_file=1
+      shift 2
+      ;;
+    -l | --lang)
+      lang="$1"
+      shift 2
+      break
+      ;;
+    -v)
+      ((verbose++))
+      shift
+      ;;
+    -e | --extract-fonts)
+      get_fonts=1
+      shift
+      ;;
+    -d | --dry-run)
+      verbose=2
+      dry_run=1
+      shift
+      ;;
+    -h | --help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      break
+      ;;
+    *)
+      (usage >&2)
+      exit 1
+      ;;
+  esac
+done
+
+redf() { tput setaf 1; }
+normf() { tput setaf 9; }
+
+[ $var_file -eq 0 ] && ingest_dir="$1"
+if [ ! -d "$ingest_dir" ]; then
+  (echo $(redf)"[ERR]: \"$ingest_dir\" does not exist!" >&2)
+  (normf >&2)
+  exit 1
+fi
+
+[ -z ${out_dir+nz} ] && out_dir="$ingest_dir"'_out'
+if [ ! -d "$out_dir" ]; then
+  mkdir "$out_dir"
+  mkdir_s=$?
+  if [ $mkdir_s -ne 0 ]; then
+    (echo $(redf)"[ERR]: Couldn't create output directory named \"$out_dir\"" >&2)
+    (normf >&2)
+    exit $mkdir_s
+  fi
+fi
+
+[ -z ${lang+nz} ] && lang='eng'
+
+noext() { basename "$@" | sed 's/\.[a-z0-9]\+$//g'; }
+
+werker() {
+  #proberx='^\s*Stream\s\+#[0-9]\+:[0-9]\+.*:\s*'
+  proberx='^\s*Stream\s\+#[0-9]\+:\([0-9]\+\)(\{0,1\}\(.*\))\{0,1\}:\s*'
+  langrx='^\s*Stream\s\+#[0-9]\+:\([0-9]\+\)(\{0,1\}\('"$lang"'\))\{0,1\}:\s*'
+  undlangrx='^\s*Stream\s\+#[0-9]\+:\([0-9]\+\)(\{0,1\}\(und\))\{0,1\}:\s*'
+
+  for file in $ingest_dir/*; do
+    noextname=$(noext "$file")
+    #subfile="$out_dir/PSP_$noextname.ass"
+    subfile="$out_dir/$(hostname).$(date +%s).ass"
+    avcfile="$out_dir/PSP_$noextname.mp4"
+    thmfile="$out_dir/PSP_$noextname.thm"
+
+    nfo=$(ffprobe "$file" 2>&1)
+    nfostat=$?
+    if [ $nfostat -ne 0 ]; then
+      (echo <<<"$nfo" >&2)
+      exit $nfostat
+    fi
+    unset nfostat
+
+    [ -e "$thmfile" ] && continue
+    [ -e "$avcfile" ] && continue
+
+    audiotracks=$(grep "$proberx"'Audio' <<<$nfo)
+    videotracks=$(grep "$proberx"'Video' <<<$nfo)
+    subtracks=$(grep "$proberx"'Subtitle' <<<$nfo)
+    unset nfo
+
+    n_audiotracks=$(wc -l <<<$audiotracks)
+    n_videotracks=$(wc -l <<<$videotracks)
+    n_subtracks=$(wc -l <<<$subtracks)
+
+    # Useful for youtube-dl downloads
+    if [ $n_audiotracks -eq 0 ]; then
+      (echo "[WARN]: Skipping \"$file\" due to missing audio stream..." >&2)
+      continue
+    elif [ $n_videotracks -eq 0 ]; then
+      (echo "[WARN]: Skipping \"$file\" due to missing video stream..." >&2)
+      continue
+    fi
+    [ $verbose -gt 0 ] && (echo -e "[LOG]: Processing file \"$file\"" >&2)
+
+    foreign_audiotracks=$(grep -v "$langrx"Audio <<<$audiotracks | grep -v "$undlangrx"Audio)
+    und_audiotracks=$(grep "$undlangrx"Audio <<<$audiotracks)
+    lang_audiotracks=$(grep "$langrx"Audio <<<$audiotracks)
+    foreign_audiotracks_byid=$(sed "s/$proberx.*$/\1/" <<<$foreign_audiotracks)
+    und_audiotracks_byid=$(sed "s/$proberx.*$/\1/" <<<$und_audiotracks)
+    lang_audiotracks_byid=$(sed "s/$langrx.*$/\1/" <<<$lang_audiotracks)
+
+    foreign_subtracks=$(grep -v "$langrx"Subtitle <<<$subtracks | grep -v "$undlangrx"Subtitle)
+    und_subtracks=$(grep "$undlangrx"Subtitle <<<$subtracks)
+    lang_subtracks=$(grep "$langrx"Subtitle <<<$subtracks)
+    foreign_subtracks_byid=$(sed "s/$proberx.*$/\1/" <<<$foreign_subtracks)
+    und_subtracks_byid=$(sed "s/$proberx.*$/\1/" <<<$und_subtracks)
+    lang_subtracks_byid=$(sed "s/$langrx.*$/\1/" <<<$lang_subtracks)
+
+
+    if [ $verbose -gt 1 ]; then
+      (echo "[DBG]: AUDIO INFO:" >&2)
+      (echo "[DBG]: ===========" >&2)
+      (echo -e "[DBG]: all audio:\n$audiotracks" >&2)
+      (echo -e "[DBG]: foreign audio:\n$foreign_audiotracks" >&2)
+      (echo -e "[DBG]: lang audio ($lang):\n$lang_audiotracks" >&2)
+      (echo -e "[DBG]: undef audio ($lang):\n$und_audiotracks" >&2)
+      (echo -e "[DBG]: [BY ID] lang audio ($lang):\n$lang_audiotracks_byid" >&2)
+      (echo -e "[DBG]: [BY ID] undef audio ($lang):\n$und_audiotracks_byid" >&2)
+      (echo -e "[DBG]: [BY ID] foreign audio ($lang):\n$foreign_audiotracks_byid" >&2)
+
+      (echo "[DBG]: SUBTITLE INFO:" >&2)
+      (echo "[DBG]: ==============" >&2)
+      (echo -e "[DBG]: all subtitle tracks:\n$subtracks" >&2)
+      (echo -e "[DBG]: foreign subtitle tracks:\n$foreign_subtracks" >&2)
+      (echo -e "[DBG]: lang subtitle tracks ($lang):\n$lang_subtracks" >&2)
+      (echo -e "[DBG]: undef subtitle tracks ($lang):\n$und_subtracks" >&2)
+      (echo -e "[DBG]: [BY ID] lang subtitle tracks ($lang):\n$lang_subtracks_byid" >&2)
+      (echo -e "[DBG]: [BY ID] undef subtitle tracks ($lang):\n$und_subtracks_byid" >&2)
+      (echo -e "[DBG]: [BY ID] foreign subtitle tracks ($lang):\n$foreign_subtracks_byid" >&2)
+    fi
+
+    # Set the default audio stream for FFmpeg mapping
+    audiostream=$(sed "s/$proberx.*$/\1/" <<<$audiotracks | head -n 1)
+    audiostream_offset=$audiostream
+    atype='first'
+
+    # Try to select the correct audio track for the selected language.
+    if [ $n_audiotracks -eq 1 ]; then
+      (echo "[WARN]: Only one audio track found, using that one..." >&2)
+    elif [ -n "$lang_audiotracks" ]; then
+      audiostream=$(head -n 1 <<<$lang_audiotracks_byid)
+      atype='lang'
+      [ $(wc -l <<<$lang_audiotracks) -gt 1 ] && \
+        (echo "[WARN]: More than one audio track in \"$lang\" found, using first one found." >&2)
+        atype='lang_first'
+    elif [ -z "$lang_audiotracks" ]; then
+      (echo "[WARN]: No audio track in \"$lang\" found!" >&2)
+      if [ -n "$und_audiotracks" ]; then
+        audiostream=$(head -n 1 <<<$und_audiotracks_byid)
+        (echo "[LOG]: Using first undefined audio track, in hope that it is in the right language." >&2)
+        atype='undef'
+      fi
+    elif [ -n "$foreign_audiotracks" -a "$atype" != "undef" ]; then
+      [ $no_subs -gt 0 ] && do_subs=1
+      audiostream=$(head -n 1 <<<$foreign_audiotracks_byid)
+      atype='foreign'
+    fi
+    ((audiostream -= audiostream_offset))
+    [ $verbose -gt 0 ] && (echo "[LOG]: Using audio track $audiostream." >&2)
+
+    subvf=""
+    # Warn for missing subs, when baking is requested.
+    if [ $do_subs -eq 1 ]; then
+      if [ $n_subtracks -eq 0 ]; then
+        (echo "[WARN]: No subtitles found in \"$file\" to bake into video..." >&2)
+      else
+        subtrack=$(sed "s/$proberx.*$/\1/" <<<$subtracks | head -n 1)
+        subtrack_offset=$subtrack
+        if [ $n_subtracks -eq 1 ]; then
+          (echo "[WARN]: Only one subtitle track found, using that one..." >&2)
+        elif [ -n "$lang_subtracks" ]; then
+          subtrack=$(head -n 1 <<<$lang_subtracks_byid)
+          [ $(wc -l <<<$lang_subtracks) -gt 1 ] && \
+            (echo "[WARN]: More than one subtitle track in \"$lang\" found, using first one found." >&2)
+        fi
+        ((subtrack -= subtrack_offset))
+        subvf=""
+      fi
+    fi
+
+    if [ $dry_run -gt 0 ]; then continue; fi
+
+    w=160
+    h=120
+    ffmpeg -i "$file" \
+      -vf "scale=$w:$h:force_original_aspect_ratio=decrease,pad=$w:$h:(ow-iw)/2:(oh-ih)/2" \
+      -f image2 \
+      -vframes 1 \
+      -r 1 \
+      -s $w'x'$h \
+      -an \
+      "$thmfile" \
+    ;
+
+    [ -e "$avcfile" ] && continue
+
+    #lnfile=.$(hostname).$(date +%s)
+    #ln -s "$file" "$lnfile"
+
+    if [ $do_subs -gt 0 ]; then
+      ffmpeg -i "$file" \
+        -an \
+        -vn \
+        -c:s ass \
+        -map 0:s:$subtrack \
+        "$subfile" \
+      ;
+      subvf=",subtitles=$subfile:si=0[v]"
+    fi
+    #continue
+
+    #w=720
+    #h=480
+    w=480
+    h=270
+    ffmpeg -i "$file" \
+      -vf "scale=$w:$h:force_original_aspect_ratio=decrease,pad=$w:$h:(ow-iw)/2:(oh-ih)/2$subvf" \
+      -c:a aac \
+      -b:a 192k \
+      -ar 48000 \
+      -ac 2 \
+      -map 0:a:$audiostream \
+      -c:v libx264 \
+      -movflags +faststart \
+      -bufsize 2M \
+      -profile:v main -level 3 -refs 3 -b-pyramid none -tune film -preset veryslow -flags +mv4+aic \
+      -pix_fmt yuv420p \
+      -b:v 2000k \
+      -maxrate 5000k \
+      -s $w'x'$h \
+      -aspect 16:9 \
+      -metadata title="$noextname encoded by tuxlovesyou" \
+      -map 0:v:0 \
+      "$avcfile" \
+    ;
+    ffstat=$?
+    # Haven't gotten this to work yet, had to resort to bash kludge...
+    #-map m:language:$lang \
+    #-vf "scale=$w:$h:force_original_aspect_ratio=decrease,pad=$w:$h:(ow-iw)/2:(oh-ih)/2,subtitles=$lnfile:si=$subtrack" \
+
+    if [ $ffstat -eq 0 ]; then
+      rm -vf "$subfile"
+      continue
+      #unlink $file
+      #unlink "$lnfile"
+    else
+      (echo $(redf)"[ERR]: FFmpeg exited with code $ffstat while transforming \"$file\" into \"$avcfile\"" >&2)
+      (normf >&2)
+      rm -vf "$avcfile"
+      rm -vf "$thmfile"
+      rm -vf "$subfile"
+      #unlink "$lnfile"
+      exit $ffstat
+    fi
+  done
+}
+
+extract_fonts() {
+  ingest_dir=$(realpath "$ingest_dir")
+  out_dir=$(realpath "$out_dir")
+  font_dir="$out_dir/fonts"
+
+  mkdir "$font_dir"
+  cd "$font_dir"
+
+  attachment_rx='^Attachment\s\+ID\s\+\([0-9]\+\):.*$'
+  for file in $ingest_dir/*.mkv; do
+    n_attach=$(mkvmerge -i "$file" | grep "$attachment_rx" | sed "s/$attachment_rx/\1/" | tail -n 1)
+    attachment_ids=$(eval echo {1..$n_attach})
+    mkvextract attachments "$file" $attachment_ids
+  done
+
+  ls -1 *.ttf *.TTF *.otf *.OTF | wc -l
+  command -v fc-cache
+  if [ $? -eq 0 ]; then
+    command -v md5sum
+    if [ $? -eq 0 ]; then
+      md5sum * | \
+        sort | \
+        awk 'BEGIN{lasthash = ""} $1 == lasthash {print $2} {lasthash = $1}' | \
+        xargs rm -v \
+      ;
+    fi
+    ls -1 *.ttf *.TTF *.otf *.OTF | wc -l
+
+    mkdir -p ~/.local/share/fonts/opentype
+    cp -v *.ttf *.TTF ~/.local/share/fonts/
+    cp -v *.otf *.OTF ~/.local/share/fonts/opentype/
+
+    fc-cache -f -v
+  fi
+
+  cd -
+}
+
+if [ $get_fonts -gt 0 ]; then
+  extract_fonts
+  cat <<'EODONE'
+.___________________________________________________________________________.
+|  _____           _                    _                  _           _ _  |
+| |  ___|__  _ __ | |_ ___     _____  _| |_ _ __ __ _  ___| |_ ___  __| | | |
+| | |_ / _ \| '_ \| __/ __|   / _ \ \/ / __| '__/ _` |/ __| __/ _ \/ _` | | |
+| |  _| (_) | | | | |_\__ \  |  __/>  <| |_| | | (_| | (__| ||  __/ (_| |_| |
+| |_|  \___/|_| |_|\__|___/   \___/_/\_\\__|_|  \__,_|\___|\__\___|\__,_(_) |
+`==========================================================================="
+
+Now time to encode for real!
+EODONE
+  exit
+fi
+
+werker
