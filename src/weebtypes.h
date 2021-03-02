@@ -8,6 +8,7 @@
 enum _do_subs { NEVER_SUBS, MAYBE_SUBS, YES_SUBS };
 
 typedef struct _batch {
+  char pretty_name[128];
   char in_dir[PATH_MAX];
   char out_dir[PATH_MAX];
   char log_dir[PATH_MAX];

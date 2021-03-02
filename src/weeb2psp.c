@@ -1,6 +1,5 @@
-#include "weebtypes.h"
 #include "weebfiles.h"
-#include "weebutil.h"
+#include "weebtext.h"
 
 #include <dirent.h>
 #include <errno.h>
@@ -26,7 +25,7 @@ int main(int argc, char *argv[]) {
   bool default_extract_fonts = false;
   bool global_disable_subs = false;
   bool sub_default = false;
-  char *global_lang = "eng";
+  char global_lang[_POSIX_ARG_MAX] = "eng";
 
   {
     char **argp = argv;
@@ -68,7 +67,7 @@ int main(int argc, char *argv[]) {
       {"burn-subtitles", no_argument, NULL, 's'},
       {"no-subtitles", no_argument, NULL, 'n'},
       {"lang", required_argument, NULL, 'l'},
-      {"help", optional_argument, NULL, 'h'},  // nocap
+      {"help", optional_argument, NULL, 'h'},
       {"dry-run", no_argument, NULL, 'd'},  // on call stack
       {"verbose", optional_argument, NULL, 'v'}, // on call stack
       {0, 0, 0, 0}
@@ -93,40 +92,46 @@ int main(int argc, char *argv[]) {
           case 'e': {
             default_extract_fonts = true;
             break;
-          }
-          case 's': {
+          } case 's': {
             sub_default = true;
             break;
-          }
-          case 'n': {
+          } case 'n': {
             global_disable_subs = true;
             sub_default = false;
             break;
-          }
-          case 'i': {
+          } case 'i': {
             strncpy(fillerup->in_dir, optarg, sizeof(fillerup->in_dir));
             if (!opendir(fillerup->in_dir)) {
               die("can't open input directory \"%s\", got error code %d: %s!\n",
                   errno, fillerup->in_dir, errno, strerror(errno));
             }
             break;
-          }
-          case 'B': {
+          } case 'l': {
+            strncpy(global_lang, optarg, sizeof(global_lang));
+            break;
+          } case 'h': {
+            USAGE_PRINT;
+            break;
+          } case 'B': {
             strncpy(batch_file, optarg, sizeof(batch_file));
             batch_p = fopen(batch_file, "r");
             if (batch_p == NULL)
               die("can't open batch file \"%s\", got error code %d: %s!\n",
                   errno, batch_file, errno, strerror(errno));
             break;
-          }
-          case 'o': {
+          } case 'o': {
             strncpy(fillerup->out_dir, optarg, sizeof(fillerup->out_dir));
             if (!opendir(fillerup->out_dir)) {
               die("Can't open output directory \"%s\", got error code %d: %s!\n",
                   errno, fillerup->out_dir, errno, strerror(errno));
             }
             break;
-          }
+          } case '?': {
+            fprintf(stderr, "Invalid argument #%d!\n\n", oidx);
+            USAGE_DIE(1);
+            break;
+          } default:
+              break;
         }
       }
     }
