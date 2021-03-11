@@ -102,7 +102,7 @@ int main(int argc, char *argv[]) {
           } case 'i': {
             strncpy(fillerup->in_dir, optarg, sizeof(fillerup->in_dir));
             if (!opendir(fillerup->in_dir)) {
-              die("can't open input directory \"%s\", got error code %d: %s!\n",
+              die("Can't open input directory \"%s\", got error code %d: %s!\n",
                   errno, fillerup->in_dir, errno, strerror(errno));
             }
             break;
@@ -110,13 +110,14 @@ int main(int argc, char *argv[]) {
             strncpy(global_lang, optarg, sizeof(global_lang));
             break;
           } case 'h': {
+            // TODO: handle help topics
             USAGE_PRINT;
             break;
           } case 'B': {
             strncpy(batch_file, optarg, sizeof(batch_file));
             batch_p = fopen(batch_file, "r");
             if (batch_p == NULL)
-              die("can't open batch file \"%s\", got error code %d: %s!\n",
+              die("Can't open batch file \"%s\", got error code %d: %s!\n",
                   errno, batch_file, errno, strerror(errno));
             break;
           } case 'o': {
