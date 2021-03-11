@@ -1,9 +1,23 @@
+# Python stuffs
+*.pyc
+__pycache__
+.sconsign*
+
+# re2c output
+re-experiments/build/*
+
 # Build stuffs
 build/*
 *.o
+
+# Ctags
+tags
 
 # Vim stuffs
 *.swp
 *.swm
 *.swn
 *.swo
+
+# local barf bin
+poo/*
