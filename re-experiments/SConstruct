@@ -1,0 +1,9 @@
+from sconutils import runpretty
+
+runpretty("re2c -W --verbose {re/,-obuild/}their-example.c")
+runpretty("re2c -W --verbose {re/,-obuild/}their-http-example.c")
+runpretty("re2c -W --verbose {re/,-obuild/}conftest.c")
+
+#Program(target="their-example", source=["their-example.c"])
+Program(target="build/their-http-example", source=["build/their-http-example.c"])
+Program(target="build/conftest", source=["build/conftest.c"])
