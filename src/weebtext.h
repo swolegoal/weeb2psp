@@ -59,27 +59,38 @@
   "  The BATCH_FILE is a simple INI-like config file that has variables defined for\n" \
   "  batches to be converted.\n" \
   "\n" \
-  "  SUPPORTED PARAMETERS\n" \
-  "    - in_dir: A string path\n" \
-  "    - out_dir (optional)\n" \
-  "\n" \
   "  SYNTAX\n" \
-  "      [BATCH NAME]
+  "      [BATCH NAME]\n" \
+  "      in_dir = \"string/path/to/directory\"\n" \
+  "      out_dir = \"string/path/to/directory\"\n" \
+  "      log_dir = \"string/path/to/directory\"\n" \
+  "      lang = \"lang_name\"\n" \
+  "      hardsubs = true|false\n" \
+  "      extract_fonts = true|false\n" \
+  "\n" \
+  "      video_target_bitrate = kbps\n" \
+  "      audio_sample_rate = Hz|original\n" \
+  "      audio_target_bitrate = kbps|original\n" \
+  "      max_bitrate = kbps\n" \
   "\n" \
   "  EXAMPLE\n" \
-  "\n" \
   "      [Initial D]\n" \
   "      in_dir = \"batches/initiald/in\"\n" \
   "      out_dir = \"batches/initiald/out\"\n" \
   "      lang = \"eng\"\n" \
   "      hardsubs = false\n" \
+  "      video_target_bitrate = 3000\n" \
+  "      audio_target_bitrate = 256\n" \
+  "      audio_sample_rate = original\n" \
+  "      max_bitrate = 5000\n" \
   "\n" \
   "      [JoJo's Bizarre Adventure Seasons 1-5]\n" \
   "      in_dir = \"batches/jojo/in\"\n" \
   "      out_dir = \"batches/jojo/out\"\n" \
   "      lang = \"eng\"\n" \
   "      hardsubs = true\n" \
-  "      extract_fonts = true\n"
+  "      extract_fonts = true\n" \
+  "      audio_sample_rate = 48000\n"
 
 #define USAGE_DIE(stat) \
   { \
