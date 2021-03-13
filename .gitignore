@@ -9,9 +9,13 @@ re-experiments/build/*
 # Build stuffs
 build/*
 *.o
+*.out
+
+# Debug stuffs
+vgcore.*
 
 # Ctags
-tags
+# tags
 
 # Vim stuffs
 *.swp
