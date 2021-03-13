@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <limits.h>
-#include <linux/limits.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -26,11 +25,11 @@ static const size_t BUFF_SIZE = 4096;
 
 typedef struct {
   char *pretty_name;
-  char *in_dir;      // remember to use PATH_MAX when strcpy'ing!
-  char *out_dir;     // remember to use PATH_MAX when strcpy'ing!
-  char *log_dir;     // remember to use PATH_MAX when strcpy'ing!
+  char *in_dir;
+  char *out_dir;
+  char *log_dir;
   char *lang;
-  int do_subs;       // -1 is undef (set to user config/program defaults)
+  int do_subs;  // -1 is undef (will set to user config/program defaults)
   bool extract_fonts;
   unsigned int audio_srate;
   unsigned int audio_brate;
