@@ -7,7 +7,7 @@
 #include <string.h>
 
 // Uncomment to add debug printing of parsed batch vars (slow)
-// #define DEBUG_PRINT
+#define DEBUG_PRINT
 
 extern int errno;
 
@@ -20,7 +20,6 @@ void die(const char *msg, int status, ...) {
   exit(status);
 }
 
-/*!max:re2c*/
 static const size_t BUFF_SIZE = 4096;
 
 typedef struct {
@@ -65,7 +64,7 @@ inline static int lex_feed(parserdata *pdata) {
   /*!stags:re2c format = "if (pdata->@@) pdata->@@ -= free;\n"; */
   pdata->lex_limit += fread(pdata->lex_limit, 1, free, pdata->conf_file);
   pdata->lex_limit[0] = 0;
-  pdata->lex_eof |= pdata->lex_limit < pdata->buffer + BUFF_SIZE;
+  pdata->lex_eof = pdata->lex_limit < pdata->buffer + BUFF_SIZE;
   return 0;
 }
 
@@ -85,7 +84,6 @@ void batch_reset(batch_t *b) {
 }
 
 void lex_init(parserdata *pdata) {
-  //pdata->buffer = (char *) malloc(BUFF_SIZE + YYMAXFILL);
   pdata->buffer = (char *) malloc(BUFF_SIZE + 1);
 
   pdata->lex_cursor
@@ -94,8 +92,10 @@ void lex_init(parserdata *pdata) {
     = pdata->lex_limit
     = pdata->buffer + BUFF_SIZE
   ;
-  /*!mtags:re2c format = "pdata->@@ = 0;\n"; */
+  /*!stags:re2c format = "pdata->@@ = NULL;\n"; */
   pdata->lex_eof = 0;
+
+  lex_feed(pdata);
 }
 
 #define TAG_SSLURP(dest, begin, end)  {         \
@@ -141,7 +141,7 @@ void lex_init(parserdata *pdata) {
     {                                          \
       char *temp = NULL;                       \
       TAG_SSLURP(temp, begin, end);            \
-      sscanf((const char *)temp, "%u", dest);  \
+      sscanf((const char *)temp, "%u", &dest); \
       free(temp);                              \
     }                                          \
   }
