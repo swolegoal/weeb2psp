@@ -253,9 +253,13 @@ lex_loop: {
       section_hdr = wsp section_start @param str @sep section_end wsp eol;
 
       * {
-        fprintf(stderr, "[ERR]: Couldn't parse line %u!  "
-                        "Last section heading found was \"[%s]\".\n",
-                line_no, batch->pretty_name);
+        if (batch) {
+          fprintf(stderr, "[ERR]: Couldn't parse line %u!  "
+                          "Last section heading found was \"[%s]\".\n",
+                  line_no, batch->pretty_name);
+        } else {
+          fprintf(stderr, "[ERR]: Couldn't parse line %u!\n", line_no);
+        }
         return -1;
       }
 
