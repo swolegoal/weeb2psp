@@ -242,7 +242,6 @@ lex_loop: {
       section_start = "[";
       section_end = "]";
       eol = [\n];
-      eoll = eol+;
 
       // Data types
       fakebool = ('true' | 'false');
