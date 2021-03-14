@@ -1,15 +1,12 @@
 from sconutils import runpretty
 
-"""
-Apparently not working (fix later)
-"""
-# env = Environment()
-# env.Append(CCFLAGS='-g -funroll-loops')
+env = Environment()
+env.Append(CCFLAGS='-g -O2')
 
 # runpretty("re2c -W --verbose {re/,-obuild/}their-example.c")
 runpretty("re2c -W --verbose re/their-http-example.c -o build/their-http-example.c")
-runpretty("re2c -W --verbose re/conftest.c -o build/conftest.c")
+runpretty("re2c -i -W --verbose re/conftest.c -o build/conftest.c")
 
 # Program(target="their-example", source=["their-example.c"])
-Program(target="build/their-http-example", source=["build/their-http-example.c"])
-Program(target="build/conftest", source=["build/conftest.c"])
+env.Program(target="build/their-http-example", source=["build/their-http-example.c"])
+env.Program(target="build/conftest", source=["build/conftest.c"])
