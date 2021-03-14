@@ -210,6 +210,12 @@ void lex_free(parserdata *pdata) {
 
 #define LEX_LOOP  { line_no++; goto lex_loop; }
 
+#define B_CHK  {                                                         \
+    if (!batch)                                                                \
+      die("[ERR]: On line %u, I found parameter before a section heading!\n",  \
+          1, line_no);                                                         \
+  }
+
 /*!maxnmatch:re2c*/
 int lex_dispatch(parserdata *pdata) {
   batch_t *batch = NULL;
@@ -318,23 +324,23 @@ lex_loop: {
         LEX_LOOP;
       }
 
-      eol     { LEX_LOOP; }
+      eol    { LEX_LOOP; }
 
-      idir    { TAG_SSLURP(batch->in_dir,  param, sep);         LEX_LOOP; }
-      odir    { TAG_SSLURP(batch->out_dir, param, sep);         LEX_LOOP; }
-      logdir  { TAG_SSLURP(batch->log_dir, param, sep);         LEX_LOOP; }
-      lang    { TAG_SSLURP(batch->lang,    param, sep);         LEX_LOOP; }
+      idir   { B_CHK; TAG_SSLURP(batch->in_dir,  param, sep);        LEX_LOOP; }
+      odir   { B_CHK; TAG_SSLURP(batch->out_dir, param, sep);        LEX_LOOP; }
+      logdir { B_CHK; TAG_SSLURP(batch->log_dir, param, sep);        LEX_LOOP; }
+      lang   { B_CHK; TAG_SSLURP(batch->lang,    param, sep);        LEX_LOOP; }
 
-      subs    { TAG_BOOLISHSLURP(batch->do_subs,    param);     LEX_LOOP; }
-      fonts   { TAG_BOOLSLURP(batch->extract_fonts, param);     LEX_LOOP; }
+      subs   { B_CHK; TAG_BOOLISHSLURP(batch->do_subs,    param);    LEX_LOOP; }
+      fonts  { B_CHK; TAG_BOOLSLURP(batch->extract_fonts, param);    LEX_LOOP; }
 
-      vr      { TAG_UINTSLURP(batch->video_brate, param, sep);  LEX_LOOP; }
-      abr     { TAG_UINTSLURP(batch->audio_brate, param, sep);  LEX_LOOP; }
-      asr     { TAG_UINTSLURP(batch->audio_srate, param, sep);  LEX_LOOP; }
-      maxr    { TAG_UINTSLURP(batch->max_brate,   param, sep);  LEX_LOOP; }
+      vr     { B_CHK; TAG_UINTSLURP(batch->video_brate, param, sep); LEX_LOOP; }
+      abr    { B_CHK; TAG_UINTSLURP(batch->audio_brate, param, sep); LEX_LOOP; }
+      asr    { B_CHK; TAG_UINTSLURP(batch->audio_srate, param, sep); LEX_LOOP; }
+      maxr   { B_CHK; TAG_UINTSLURP(batch->max_brate,   param, sep); LEX_LOOP; }
 
-      abr_og  { batch->audio_brate = 0;                         LEX_LOOP; }
-      asr_og  { batch->audio_srate = 0;                         LEX_LOOP; }
+      abr_og { B_CHK; batch->audio_brate = 0;                        LEX_LOOP; }
+      asr_og { B_CHK; batch->audio_srate = 0;                        LEX_LOOP; }
 
      */
   }
