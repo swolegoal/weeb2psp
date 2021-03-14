@@ -241,13 +241,13 @@ lex_loop: {
       quo = ["];
       section_start = "[";
       section_end = "]";
-      _eol = [\n];
-      eol = _eol+;
+      eol = [\n];
+      eoll = eol+;
 
       // Data types
       fakebool = ('true' | 'false');
       num = [0-9]+;
-      str = ([^] \ _eol)+;
+      str = ([^] \ eol)+;
       og = "original";
 
       // Parameters
@@ -318,6 +318,8 @@ lex_loop: {
 
         LEX_LOOP;
       }
+
+      eol     { LEX_LOOP; }
 
       idir    { TAG_SSLURP(batch->in_dir,  param, sep);         LEX_LOOP; }
       odir    { TAG_SSLURP(batch->out_dir, param, sep);         LEX_LOOP; }
