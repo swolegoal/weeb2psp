@@ -76,11 +76,22 @@ void batch_reset(batch_t *b) {
   b->lang        = NULL;
 
   b->do_subs = -1;
+  b->extract_fonts = false;
 
   b->audio_brate = 0;
   b->audio_srate = 0;
   b->video_brate = 0;
   b->max_brate   = 0;
+}
+
+void batch_free(batch_t *b) {
+  if (b == NULL) return;
+  free((void *)b->pretty_name);
+  free((void *)b->in_dir);
+  free((void *)b->out_dir);
+  free((void *)b->log_dir);
+  free((void *)b->lang);
+  free((void *)b);
 }
 
 void lex_init(parserdata *pdata) {
@@ -96,6 +107,10 @@ void lex_init(parserdata *pdata) {
   pdata->lex_eof = 0;
 
   lex_feed(pdata);
+}
+
+void lex_free(parserdata *pdata) {
+  free(pdata->buffer);
 }
 
 #define TAG_SSLURP(dest, begin, end)  {         \
@@ -260,13 +275,17 @@ lex_loop: {
         } else {
           fprintf(stderr, "[ERR]: Couldn't parse line %u!\n", line_no);
         }
+        batch_free(batch);
         return -1;
       }
 
       $ {
-        #ifdef DEBUG_PRINT
-          PRINT_BATCH_INISTYLE(batch);
-        #endif
+        if (batch) {
+          #ifdef DEBUG_PRINT
+            PRINT_BATCH_INISTYLE(batch);
+          #endif
+        }
+        batch_free(batch);
         return 0;
       }
 
@@ -290,12 +309,7 @@ lex_loop: {
             if (badflag)
               exit(1);
           }
-          free((void *)batch->pretty_name);
-          free((void *)batch->in_dir);
-          free((void *)batch->out_dir);
-          free((void *)batch->log_dir);
-          free((void *)batch->lang);
-          free((void *)batch);
+          batch_free(batch);
         }
         batch = malloc(sizeof(batch_t));
         batch_reset(batch);
@@ -346,6 +360,10 @@ int main(int argc, char *argv[]) {
 
   {
     int lexstat = lex_dispatch(&pdata);
+    lex_free(&pdata);
+    if (pdata.conf_file != stdin) {
+      fclose(pdata.conf_file);
+    }
     if (lexstat != 0) {
       die("Error parsing config file named \"%s\"\n", lexstat, argv[1]);
     } else {
