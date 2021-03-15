@@ -1,13 +1,26 @@
 from sconutils import runpretty
 
 env = Environment()
-env.Append(CCFLAGS='-g -O2')
-# env.Replace(CC='afl-gcc')
+env.Append(CCFLAGS="-O2")
 
-# runpretty("re2c -W --verbose {re/,-obuild/}their-example.c")
-runpretty("re2c -W --verbose re/their-http-example.c -o build/their-http-example.c")
+dbg = ARGUMENTS.get("debug", 0)
+afl = ARGUMENTS.get("afl", 0)
+iniprint = ARGUMENTS.get("print", 0)
+
+# Build C lexer state machines
 runpretty("re2c -i -W --verbose re/conftest.c -o build/conftest.c")
 
-# Program(target="their-example", source=["their-example.c"])
-env.Program(target="build/their-http-example", source=["build/their-http-example.c"])
+if int(iniprint):
+    env.Append(CPPDEFINES=["DEBUG_PRINT"])
+
+if int(dbg):
+    env.Append(CCFLAGS="-g")
+
+# Regular compilation
 env.Program(target="build/conftest", source=["build/conftest.c"])
+
+# Fuzzer compilation
+if int(afl):
+    env.Append(CCFLAGS="-g")
+    env.Replace(CC="afl-gcc")
+    env.Program(target="build/conftest-afl", source=["build/conftest.c"])
