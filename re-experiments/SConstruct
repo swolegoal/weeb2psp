@@ -2,6 +2,7 @@ from sconutils import runpretty
 
 env = Environment()
 env.Append(CCFLAGS='-g -O2')
+# env.Replace(CC='afl-gcc')
 
 # runpretty("re2c -W --verbose {re/,-obuild/}their-example.c")
 runpretty("re2c -W --verbose re/their-http-example.c -o build/their-http-example.c")
