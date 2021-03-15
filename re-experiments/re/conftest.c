@@ -1,3 +1,4 @@
+#include <assert.h>
 #include <errno.h>
 #include <limits.h>
 #include <stdbool.h>
@@ -6,8 +7,12 @@
 #include <stdlib.h>
 #include <string.h>
 
-// Uncomment to add debug printing of parsed batch vars (slow)
-//#define DEBUG_PRINT
+// Give Scons "print=1" flag to build with DEBUG_PRINT.
+#ifdef DEBUG_PRINT
+#define DEBUG(x) x
+#else
+#define DEBUG(x)
+#endif
 
 extern int errno;
 
@@ -68,7 +73,9 @@ inline static int lex_feed(parserdata *pdata) {
   return 0;
 }
 
-void batch_reset(batch_t *b) {
+static inline batch_t *batch_alloc() {
+  batch_t *b = (batch_t*)malloc(sizeof(batch_t));
+
   b->pretty_name = NULL;
   b->in_dir      = NULL;
   b->out_dir     = NULL;
@@ -82,10 +89,12 @@ void batch_reset(batch_t *b) {
   b->audio_srate = 0;
   b->video_brate = 0;
   b->max_brate   = 0;
+
+  return b;
 }
 
-void batch_free(batch_t *b) {
-  if (b == NULL) return;
+static inline void batch_free(batch_t *b) {
+  assert(b != NULL);
   free((void *)b->pretty_name);
   free((void *)b->in_dir);
   free((void *)b->out_dir);
@@ -94,7 +103,7 @@ void batch_free(batch_t *b) {
   free((void *)b);
 }
 
-void lex_init(parserdata *pdata) {
+static inline void lex_init(parserdata *pdata) {
   pdata->buffer = (char *) malloc(BUFF_SIZE + 1);
 
   pdata->lex_cursor
@@ -109,15 +118,20 @@ void lex_init(parserdata *pdata) {
   lex_feed(pdata);
 }
 
-void lex_free(parserdata *pdata) {
+static inline void lex_free(parserdata *pdata) {
   free(pdata->buffer);
 }
 
-#define TAG_SSLURP(dest, begin, end)  {         \
-    size_t sz = (size_t)((end - begin) + 1);    \
-    dest = malloc(sz);                          \
-    strncpy(dest, begin, sz - 1);               \
-    dest[sz - 1] = '\0';                        \
+#define TAG_SSLURP(dest, begin, end)  {                           \
+    if (dest != NULL) {                                           \
+      DEBUG(fprintf(stderr, "[WARN]: Parameter redefinition "     \
+                            "on line %u of input!\n", line_no));  \
+      free(dest);                                                 \
+    }                                                             \
+    size_t sz = (size_t)((end - begin) + 1);                      \
+    dest = malloc(sz);                                            \
+    strncpy(dest, begin, sz - 1);                                 \
+    dest[sz - 1] = '\0';                                          \
   }
 
 #define TAG_BOOLSLURP(var, stag)  {                                            \
@@ -161,62 +175,91 @@ void lex_free(parserdata *pdata) {
     }                                          \
   }
 
-#define PRINT_BATCH_INISTYLE(batch)  {                                         \
-    printf("\n[%s]\n", batch->pretty_name);                                    \
-    printf("in_dir = \"%s\"\n", batch->in_dir);                                \
-    printf("out_dir = \"%s\"\n", batch->out_dir);                              \
-    if (batch->log_dir)                                                        \
-      printf("log_dir = \"%s\"\n", batch->log_dir);                            \
-                                                                               \
-    if (batch->lang)                                                           \
-      printf("lang = \"%s\"\n", batch->lang);                                  \
-                                                                               \
-    printf("hardsubs = ");                                                     \
-    switch (batch->do_subs) {                                                  \
-      case -1:                                                                 \
-        printf("program/user default (see config/headers)\n");                 \
-        break;                                                                 \
-      case 0:                                                                  \
-        puts("false");                                                         \
-        break;                                                                 \
-      case 1:                                                                  \
-        puts("true");                                                          \
-        break;                                                                 \
-      default:                                                                 \
-        die("UNCAUGHT PARSER ERROR!!\n", 1);                                   \
-        break;                                                                 \
-    }                                                                          \
-    printf("extract_fonts = %s\n", (batch->extract_fonts ? "true" : "false")); \
-    printf("audio_target_bitrate = ");                                         \
-    switch (batch->audio_brate) {                                              \
-      case 0:                                                                  \
-        puts("original");                                                      \
-        break;                                                                 \
-      default:                                                                 \
-        printf("%u\n", batch->audio_brate);                                    \
-        break;                                                                 \
-    }                                                                          \
-    printf("audio_sample_rate = ");                                            \
-    switch (batch->audio_srate) {                                              \
-      case 0:                                                                  \
-        puts("original");                                                      \
-        break;                                                                 \
-      default:                                                                 \
-        printf("%u\n", batch->audio_srate);                                    \
-        break;                                                                 \
-    }                                                                          \
-    if (batch->video_brate)                                                    \
-      printf("video_target_bitrate = %u\n", batch->video_brate);               \
-    if (batch->max_brate)                                                      \
-      printf("max_bitrate = %u\n", batch->max_brate);                          \
+static void print_batch_inistyle(const batch_t *batch) {
+  if (batch->pretty_name) {
+    printf("\n[%s]\n", batch->pretty_name);
+    assert(batch->in_dir && batch->out_dir);
+    printf("in_dir = \"%s\"\n", batch->in_dir);
+    printf("out_dir = \"%s\"\n", batch->out_dir);
+    if (batch->log_dir)
+      printf("log_dir = \"%s\"\n", batch->log_dir);
+
+    if (batch->lang)
+      printf("lang = \"%s\"\n", batch->lang);
+
+    printf("hardsubs = ");
+    switch (batch->do_subs) {
+      case -1:
+        printf("program/user default (see config/headers)\n");
+        break;
+      case 0:
+        puts("false");
+        break;
+      case 1:
+        puts("true");
+        break;
+      default:
+        die("UNCAUGHT PARSER ERROR!!\n", 1);
+        break;
+    }
+    printf("extract_fonts = %s\n", (batch->extract_fonts ? "true" : "false"));
+    printf("audio_target_bitrate = ");
+    switch (batch->audio_brate) {
+      case 0:
+        puts("original");
+        break;
+      default:
+        printf("%u\n", batch->audio_brate);
+        break;
+    }
+    printf("audio_sample_rate = ");
+    switch (batch->audio_srate) {
+      case 0:
+        puts("original");
+        break;
+      default:
+        printf("%u\n", batch->audio_srate);
+        break;
+    }
+    if (batch->video_brate)
+      printf("video_target_bitrate = %u\n", batch->video_brate);
+    if (batch->max_brate)
+      printf("max_bitrate = %u\n", batch->max_brate);
   }
+}
+
+static bool validate_batch(const batch_t *batch) {
+  if (batch->pretty_name) {
+    if (!batch->in_dir) {
+      fprintf(stderr, "[ERR]: Section \"%s\" missing \"in_dir\" definition!\n",
+        batch->pretty_name);
+      return false;
+    } else if (!batch->out_dir) {
+      fprintf(stderr, "[ERR]: Section \"%s\" missing \"out_dir\" definition!\n",
+        batch->pretty_name);
+      return false;
+    } else {
+      // ... other checks
+    }
+  } else {
+    if (batch->in_dir) {
+      fprintf(stderr, "[ERR]: in_dir \"%s\" without section!\n", batch->in_dir);
+      return false;
+    } else if (batch->out_dir) {
+      fprintf(stderr, "[ERR]: out_dir \"%s\" without section!\n", batch->out_dir);
+      return false;
+    } else {
+      // ... other checks
+    }
+  }
+  return true;
+}
 
 #define LEX_LOOP  { line_no++; goto lex_loop; }
 #define HDR_LOOP  { line_no++; goto hdr_loop; }
 
-/*!maxnmatch:re2c*/
 int lex_dispatch(parserdata *pdata) {
-  batch_t *batch = NULL;
+  batch_t *batch = batch_alloc();
   unsigned int line_no = 1;
 
 hdr_loop: {
@@ -262,8 +305,7 @@ hdr_loop: {
       $ { batch_free(batch); return 0; }
 
       section_hdr {
-        batch = malloc(sizeof(batch_t));
-        batch_reset(batch);
+        batch = batch_alloc();
 
         TAG_SSLURP(batch->pretty_name, param, sep);
 
@@ -313,51 +355,36 @@ lex_loop: {
       maxr   = wsp "max_bitrate"          eq     @param num      @sep     wsp eol;
 
       * {
-        if (batch) {
-          fprintf(stderr, "[ERR]: Couldn't parse line %u!  "
-                          "Last section heading found was \"[%s]\".\n",
-                  line_no, batch->pretty_name);
-        } else {
-          fprintf(stderr, "[ERR]: Couldn't parse line %u!\n", line_no);
+        fprintf(stderr, "[ERR]: Couldn't parse line %u!\n", line_no);
+        if (batch->pretty_name) {
+          fprintf(stderr, "Last section heading found was \"[%s]\".\n",
+            batch->pretty_name);
         }
         batch_free(batch);
         return -1;
       }
 
       $ {
-        if (batch) {
-          #ifdef DEBUG_PRINT
-            PRINT_BATCH_INISTYLE(batch);
-          #endif
+        DEBUG(print_batch_inistyle(batch));
+        if (!validate_batch(batch)) {
+          batch_free(batch);
+          return -1;
+        } else {
+          batch_free(batch);
+          return 0;
         }
-        batch_free(batch);
-        return 0;
       }
 
       section_hdr {
-        if (batch) {
-          #ifdef DEBUG_PRINT
-            PRINT_BATCH_INISTYLE(batch);
-          #endif
-          {
-            bool badflag = false;
-            if (!batch->in_dir) {
-              fprintf(stderr, "[ERR]: Section \"%s\" missing \"in_dir\" definition!\n",
-                      batch->pretty_name);
-              badflag = true;
-            }
-            if (!batch->out_dir) {
-              fprintf(stderr, "[ERR]: Section \"%s\" missing \"out_dir\" definition!\n",
-                      batch->pretty_name);
-              badflag = true;
-            }
-            if (badflag)
-              exit(1);
-          }
+        DEBUG(print_batch_inistyle(batch));
+
+        if (!validate_batch(batch)) {
           batch_free(batch);
+          return -1;
         }
-        batch = malloc(sizeof(batch_t));
-        batch_reset(batch);
+
+        batch_free(batch);
+        batch = batch_alloc();
 
         TAG_SSLURP(batch->pretty_name, param, sep);
 
