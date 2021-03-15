@@ -1,4 +1,3 @@
-#include "weebtypes.h"
 #include "weebutil.h"
 
 #define USAGE \

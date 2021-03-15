@@ -1,10 +1,11 @@
 # Python stuffs
+.venv
 *.pyc
 __pycache__
 .sconsign*
 
 # re2c output
-re-experiments/build/*
+src/weebparse.c
 
 # Build stuffs
 build/*
@@ -15,7 +16,7 @@ build/*
 vgcore.*
 
 # Ctags
-# tags
+tags
 
 # Vim stuffs
 *.swp

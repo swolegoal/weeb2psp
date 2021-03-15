@@ -1,9 +1,11 @@
 #include "weebfiles.h"
 #include "weebtext.h"
+#include "weebtypes.h"
 
 #include <dirent.h>
 #include <errno.h>
 #include <getopt.h>
+#include <limits.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +19,7 @@
 extern int errno;
 
 int main(int argc, char *argv[]) {
-  batch batches[256];  // TODO: find way to keep this full while threads go brrrrr
+  batch_t batches[256];  // TODO: find way to keep this full while threads go brrrrr
   //size_t nbatches;
   int verbosity = 0;
   int outdirs = 0;
@@ -48,7 +50,6 @@ int main(int argc, char *argv[]) {
       }
       argi++;
       argp++;
-
     }
     if((outdirs > 1) && (outdirs != indirs)) {
       die("Parameter error!!! Must have either one shared output directory or "
@@ -57,7 +58,7 @@ int main(int argc, char *argv[]) {
   }
   {
     char batch_file[PATH_MAX] = { 0 };
-    FILE *batch_p = NULL;
+    FILE *bf = NULL;
 
     const struct option long_opts[] = {
       {"extract-fonts", no_argument, NULL, 'e'},
@@ -75,7 +76,7 @@ int main(int argc, char *argv[]) {
 
     {
       int oidx = 0;
-      batch *fillerup = batches;
+      batch_t *fillerup = batches;
 
       char *in_dirs[indirs];
       char *out_dirs[outdirs];
@@ -115,8 +116,12 @@ int main(int argc, char *argv[]) {
             break;
           } case 'B': {
             strncpy(batch_file, optarg, sizeof(batch_file));
-            batch_p = fopen(batch_file, "r");
-            if (batch_p == NULL)
+            if (strncmp("-", optarg, _POSIX_ARG_MAX) == 0) {
+              bf = stdin;
+            } else {
+              bf = fopen(batch_file, "r");
+            }
+            if (bf == NULL)
               die("Can't open batch file \"%s\", got error code %d: %s!\n",
                   errno, batch_file, errno, strerror(errno));
             break;
@@ -130,9 +135,8 @@ int main(int argc, char *argv[]) {
           } case '?': {
             fprintf(stderr, "Invalid argument #%d!\n\n", oidx);
             USAGE_DIE(1);
-            break;
           } default:
-              break;
+            break;
         }
       }
     }

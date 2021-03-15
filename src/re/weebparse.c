@@ -1,45 +1,13 @@
 #include <assert.h>
-#include <errno.h>
-#include <limits.h>
 #include <stdbool.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-// Give Scons "print=1" flag to build with DEBUG_PRINT.
-#ifdef DEBUG_PRINT
-#define DEBUG(x) x
-#else
-#define DEBUG(x)
-#endif
-
-extern int errno;
-
-void die(const char *msg, int status, ...) {
-  va_list args;
-  va_start(args, status);
-  vfprintf(stderr, msg, args);
-  va_end(args);
-
-  exit(status);
-}
-
-static const size_t BUFF_SIZE = 4096;
-
-typedef struct {
-  char *pretty_name;
-  char *in_dir;
-  char *out_dir;
-  char *log_dir;
-  char *lang;
-  int do_subs;  // -1 is undef (will set to user config/program defaults)
-  bool extract_fonts;
-  unsigned int audio_srate;
-  unsigned int audio_brate;
-  unsigned int video_brate;
-  unsigned int max_brate;
-} batch_t;
+#include "weebparse.h"
+#include "weebtypes.h"
+#include "weebutil.h"
 
 typedef struct {
   FILE    *conf_file;
@@ -51,6 +19,8 @@ typedef struct {
   /*!stags:re2c format = 'const char *@@;\n'; */
   size_t  lex_eof;
 } parserdata;
+
+static const size_t BUFF_SIZE = 4096;
 
 inline static int lex_feed(parserdata *pdata) {
   if (pdata->lex_eof)
@@ -121,59 +91,6 @@ static inline void lex_init(parserdata *pdata) {
 static inline void lex_free(parserdata *pdata) {
   free(pdata->buffer);
 }
-
-#define TAG_SSLURP(dest, begin, end)  {                           \
-    if (dest != NULL) {                                           \
-      DEBUG(fprintf(stderr, "[WARN]: Parameter redefinition "     \
-                            "on line %u of input!\n", line_no));  \
-      free(dest);                                                 \
-    }                                                             \
-    size_t sz = (size_t)((end - begin) + 1);                      \
-    dest = malloc(sz);                                            \
-    strncpy(dest, begin, sz - 1);                                 \
-    dest[sz - 1] = '\0';                                          \
-  }
-
-#define TAG_BOOLSLURP(var, stag)  {                                            \
-    switch (stag[0]) {                                                         \
-      case 't': {                                                              \
-        var = true;                                                            \
-        break;                                                                 \
-      }                                                                        \
-      case 'f': {                                                              \
-        var = false;                                                           \
-        break;                                                                 \
-      }                                                                        \
-      default:                                                                 \
-        die("Bad fake boolean parameter starting with \"%c\"\n!", 1, stag[0]); \
-        break;                                                                 \
-    }                                                                          \
-  }
-
-#define TAG_BOOLISHSLURP(var, stag)  {                                         \
-    switch (stag[0]) {                                                         \
-      case 't': {                                                              \
-        var = 1;                                                               \
-        break;                                                                 \
-      }                                                                        \
-      case 'f': {                                                              \
-        var = 0;                                                               \
-        break;                                                                 \
-      }                                                                        \
-      default:                                                                 \
-        die("Bad fake boolean parameter starting with \"%c\"\n!", 1, stag[0]); \
-        break;                                                                 \
-    }                                                                          \
-  }
-
-#define TAG_UINTSLURP(dest, begin, end)  {     \
-    {                                          \
-      char *temp = NULL;                       \
-      TAG_SSLURP(temp, begin, end);            \
-      sscanf((const char *)temp, "%u", &dest); \
-      free(temp);                              \
-    }                                          \
-  }
 
 static void print_batch_inistyle(const batch_t *batch) {
   if (batch->pretty_name) {
@@ -254,9 +171,6 @@ static bool validate_batch(const batch_t *batch) {
   }
   return true;
 }
-
-#define LEX_LOOP  { line_no++; goto lex_loop; }
-#define HDR_LOOP  { line_no++; goto hdr_loop; }
 
 int lex_dispatch(parserdata *pdata) {
   batch_t *batch = batch_alloc();
@@ -414,23 +328,11 @@ lex_loop: {
   return -2;
 }
 
-int main(int argc, char *argv[]) {
+int lex_file(FILE *f, const char *fname) {
   parserdata pdata;
+  pdata.conf_file = f;
 
-  if (argc < 2) {
-    die("Usage:  %s CONF_FILE\n", 1, argv[0]);
-  } else if (strncmp("-", argv[1], _POSIX_ARG_MAX) == 0) {
-    pdata.conf_file = stdin;
-  } else {
-    pdata.conf_file = fopen(argv[1], "r");
-  }
-
-  if (pdata.conf_file == NULL) {
-    die("%s: Error %d, can't open \"%s\": %s!\n",
-        errno, argv[0], errno, argv[1], strerror(errno));
-  }
   lex_init(&pdata);
-
 
   {
     int lexstat = lex_dispatch(&pdata);
@@ -439,7 +341,7 @@ int main(int argc, char *argv[]) {
       fclose(pdata.conf_file);
     }
     if (lexstat != 0) {
-      die("Error parsing config file named \"%s\"\n", lexstat, argv[1]);
+      die("Error parsing config file named \"%s\"\n", lexstat, fname);
     } else {
       return lexstat;
     }
