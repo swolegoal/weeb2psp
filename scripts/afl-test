@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+
+<<USAGE
+  scripts/afl_test build/TARGET [TESTS_DIR]
+USAGE
+
+git_root=$(git rev-parse --show-toplevel)
+bin_name=$(basename "$1")
+if [ -n "$2" ]; then
+  tests="$2"
+else
+  tests='batch-examples'
+fi
+
+if [ "$PWD" != "$git_root" ]; then
+  (echo "Please \"cd\" to \"$git_root\" and run this script again!" >&2)
+  exit 1
+fi
+
+
+out_dir="afl-fuzzing/$bin_name.$(date +%y-%m-%d.%s)"
+[ ! -d "$out_dir" ] && mkdir -p "$out_dir"
+
+scons "$1" afl=1 &&
+  afl-fuzz -i "$tests" -o "$out_dir" -- "$1" @@

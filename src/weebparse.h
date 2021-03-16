@@ -62,5 +62,21 @@ int lex_file(FILE *f, const char *fname);
     }                                          \
   }
 
+#define BPARAM_NOSECTION_BOOL(var) {                                      \
+    if (((int)var >= 0)) {                                                \
+      const char *tf = var ? "true" : "false";                            \
+      fprintf(stderr, "[ERR]: First batch tried to set \"" #var "\" to "  \
+                      "\"%s\" prior to [section] name!\n", tf);           \
+    }                                                                     \
+  }
+
+#define BPARAM_NOSECTION(var, percent) {                                  \
+    /* Won't print some "original" values, but gud 'nuff! */              \
+    if (var) {                                                            \
+      fprintf(stderr, "[ERR]: First batch tried to set \"" #var "\" to "  \
+                      "\"" percent "\" "                                  \
+                      "prior to [section] name!\n", var);                 \
+    }                                                                     \
+  }
+
 #define LEX_LOOP  { line_no++; goto lex_loop; }
-#define HDR_LOOP  { line_no++; goto hdr_loop; }

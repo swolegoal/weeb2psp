@@ -150,24 +150,26 @@ static bool validate_batch(const batch_t *batch) {
     if (!batch->in_dir) {
       fprintf(stderr, "[ERR]: Section \"%s\" missing \"in_dir\" definition!\n",
         batch->pretty_name);
-      return false;
-    } else if (!batch->out_dir) {
+    }
+    if (!batch->out_dir) {
       fprintf(stderr, "[ERR]: Section \"%s\" missing \"out_dir\" definition!\n",
         batch->pretty_name);
-      return false;
-    } else {
-      // ... other checks
     }
+    return false;
   } else {
-    if (batch->in_dir) {
-      fprintf(stderr, "[ERR]: in_dir \"%s\" without section!\n", batch->in_dir);
-      return false;
-    } else if (batch->out_dir) {
-      fprintf(stderr, "[ERR]: out_dir \"%s\" without section!\n", batch->out_dir);
-      return false;
-    } else {
-      // ... other checks
-    }
+    BPARAM_NOSECTION(batch->in_dir,  "%s");
+    BPARAM_NOSECTION(batch->out_dir, "%s");
+    BPARAM_NOSECTION(batch->log_dir, "%s");
+    BPARAM_NOSECTION(batch->lang,    "%s");
+
+    BPARAM_NOSECTION_BOOL(batch->do_subs);
+    BPARAM_NOSECTION_BOOL(batch->extract_fonts);
+
+    BPARAM_NOSECTION(batch->audio_srate, "%u");
+    BPARAM_NOSECTION(batch->audio_brate, "%u");
+    BPARAM_NOSECTION(batch->video_brate, "%u");
+    BPARAM_NOSECTION(batch->max_brate,   "%u");
+    return false;
   }
   return true;
 }
@@ -176,7 +178,7 @@ int lex_dispatch(parserdata *pdata) {
   batch_t *batch = batch_alloc();
   unsigned int line_no = 1;
 
-hdr_loop: {
+lex_loop: {
     const char *param, *sep;
     param = sep = NULL;
 
@@ -206,53 +208,12 @@ hdr_loop: {
 
       // Data types
       str = ([^] \ eol)+;
-
-      // Section
-      section_hdr = wsp section_start @param str @sep section_end wsp eol;
-
-      * {
-        fprintf(stderr, "[ERR]: Couldn't parse line %u!  Batch file must start "
-                        "with section heading!\n", line_no);
-        return -1;
-      }
-
-      $ { batch_free(batch); return 0; }
-
-      section_hdr {
-        batch = batch_alloc();
-
-        TAG_SSLURP(batch->pretty_name, param, sep);
-
-        LEX_LOOP;
-      }
-
-      eol  { HDR_LOOP; }
-
-     */
-  }
-
-lex_loop: {
-    const char *param, *sep;
-    param = sep = NULL;
-
-    pdata->lex_token = pdata->lex_cursor;
-
-    /*!re2c
-      re2c:tags:expression = "pdata->@@";
-      re2c:eof = 0;
-      re2c:api:style = free-form;
-      re2c:define:YYCTYPE = char;
-      re2c:flags:tags = 1;
-
-      re2c:define:YYCURSOR = pdata->lex_cursor;
-      re2c:define:YYMARKER = pdata->lex_marker;
-      re2c:define:YYLIMIT = pdata->lex_limit;
-      re2c:define:YYFILL = "lex_feed(pdata) == 0";
-
-      // Data types
       fakebool = ('true' | 'false');
       num = [0-9]+;
       og = "original";
+
+      // Section
+      section_hdr = wsp section_start @param str @sep section_end wsp eol;
 
       // Parameters
       idir   = wsp "in_dir"               eq quo @param str      @sep quo wsp eol;

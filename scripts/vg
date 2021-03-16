@@ -1,19 +1,26 @@
-#!/bin/sh
+#!/usr/bin/env bash
 
 git_root="$(git rev-parse --show-toplevel)"
 supp="$git_root/all.supp"
 
-G_SLICE=always-malloc \
-G_DEBUG=gc-friendly   \
-GLIBCXX_FORCE_NEW=1 \
-valgrind \
-    --track-origins=yes          \
-    --trace-children=yes         \
-    --num-callers=50             \
-    --track-fds=yes              \
-    --leak-check=full            \
-    --show-reachable=yes         \
-    --malloc-fill=0xE1           \
-    --free-fill=0xF1             \
-    --suppressions="$supp"       \
-"$@"
+if [ "$PWD" != "$git_root" ]; then
+  (echo "Please \"cd\" to \"$git_root\" and run this script again!" >&2)
+  exit 1
+fi
+
+scons "$1" debug=1 &&              \
+                                   \
+  G_SLICE=always-malloc            \
+  G_DEBUG=gc-friendly              \
+  GLIBCXX_FORCE_NEW=1              \
+  valgrind                         \
+      --track-origins=yes          \
+      --trace-children=yes         \
+      --num-callers=50             \
+      --track-fds=yes              \
+      --leak-check=full            \
+      --show-reachable=yes         \
+      --malloc-fill=0xE1           \
+      --free-fill=0xF1             \
+      --suppressions="$supp"       \
+  "$@"
