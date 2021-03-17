@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 git_root="$(git rev-parse --show-toplevel)"
+chowner=$(stat --printf='%U:%G' "$git_root")
 supp="$git_root/all.supp"
 
 if [ "$PWD" != "$git_root" ]; then
@@ -9,6 +10,7 @@ if [ "$PWD" != "$git_root" ]; then
 fi
 
 scons "$1" debug=1 &&              \
+  chown -R $chowner build src &&   \
                                    \
   G_SLICE=always-malloc            \
   G_DEBUG=gc-friendly              \

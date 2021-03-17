@@ -4,7 +4,10 @@
   scripts/afl_test build/TARGET [TESTS_DIR]
 USAGE
 
+[ $UID -ne 0 ] && (echo "Please run as root!" >&2) && exit 1
+
 git_root=$(git rev-parse --show-toplevel)
+chowner=$(stat --printf='%U:%G' "$git_root")
 bin_name=$(basename "$1")
 if [ -n "$2" ]; then
   tests="$2"
@@ -17,9 +20,17 @@ if [ "$PWD" != "$git_root" ]; then
   exit 1
 fi
 
+echo core > /proc/sys/kernel/core_pattern
+
+if [ "$(uname)" == "Linux" ]; then
+  for cpu in /sys/devices/system/cpu/cpu*; do
+    echo -n "$(basename $cpu): "
+    echo performance | tee $cpu/cpufreq/scaling_governor
+  done
+fi
 
 out_dir="afl-fuzzing/$bin_name.$(date +%y-%m-%d.%s)"
 [ ! -d "$out_dir" ] && mkdir -p "$out_dir"
 
-scons "$1" afl=1 &&
+scons "$1" afl=1 && chown -R $chowner build src &&
   afl-fuzz -i "$tests" -o "$out_dir" -- "$1" @@
