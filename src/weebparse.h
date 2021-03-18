@@ -37,13 +37,13 @@ int lex_file(FILE *f, const char *fname);
     }                                                                          \
   }
 
-#define TAG_UINTSLURP(dest, begin, end)  {     \
-    {                                          \
-      char *temp = NULL;                       \
-      TAG_SSLURP(temp, begin, end);            \
-      sscanf((const char *)temp, "%u", &dest); \
-      free(temp);                              \
-    }                                          \
+#define TAG_UINTSLURP(dest, begin, end)  {         \
+    {                                              \
+      dest = 0;                                    \
+      for (const char *s = begin; s < end; ++s) {  \
+        dest = dest * 10 + (*s - '0');             \
+      }                                            \
+    }                                              \
   }
 
 #define BPARAM_NOSECTION_BOOL(var) {                                      \
