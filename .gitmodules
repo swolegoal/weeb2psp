@@ -1,0 +1,3 @@
+[submodule "c-tap-harness"]
+	path = util/c-tap-harness
+	url = https://git.eyrie.org/git/devel/c-tap-harness.git
