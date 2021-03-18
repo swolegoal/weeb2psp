@@ -21,22 +21,6 @@ int lex_file(FILE *f, const char *fname);
     dest[sz - 1] = '\0';                                          \
   }
 
-#define TAG_BOOLSLURP(var, stag)  {                                            \
-    switch (stag[0]) {                                                         \
-      case 't': {                                                              \
-        var = true;                                                            \
-        break;                                                                 \
-      }                                                                        \
-      case 'f': {                                                              \
-        var = false;                                                           \
-        break;                                                                 \
-      }                                                                        \
-      default:                                                                 \
-        die("Bad fake boolean parameter starting with \"%c\"\n!", 1, stag[0]); \
-        break;                                                                 \
-    }                                                                          \
-  }
-
 #define TAG_BOOLISHSLURP(var, stag)  {                                         \
     switch (stag[0]) {                                                         \
       case 't': {                                                              \
@@ -63,10 +47,11 @@ int lex_file(FILE *f, const char *fname);
   }
 
 #define BPARAM_NOSECTION_BOOL(var) {                                      \
-    if (((int)var >= 0)) {                                                \
+    if ((var >= 0)) {                                                     \
       const char *tf = var ? "true" : "false";                            \
       fprintf(stderr, "[ERR]: First batch tried to set \"" #var "\" to "  \
                       "\"%s\" prior to [section] name!\n", tf);           \
+      bparam_nosection = true;                                            \
     }                                                                     \
   }
 
@@ -76,6 +61,7 @@ int lex_file(FILE *f, const char *fname);
       fprintf(stderr, "[ERR]: First batch tried to set \"" #var "\" to "  \
                       "\"" percent "\" "                                  \
                       "prior to [section] name!\n", var);                 \
+      bparam_nosection = true;                                            \
     }                                                                     \
   }
 

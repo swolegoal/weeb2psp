@@ -53,7 +53,7 @@ static inline batch_t *batch_alloc() {
   b->lang        = NULL;
 
   b->do_subs = -1;
-  b->extract_fonts = false;
+  b->extract_fonts = -1;
 
   b->audio_brate = 0;
   b->audio_srate = 0;
@@ -150,13 +150,16 @@ static bool validate_batch(const batch_t *batch) {
     if (!batch->in_dir) {
       fprintf(stderr, "[ERR]: Section \"%s\" missing \"in_dir\" definition!\n",
         batch->pretty_name);
+        return false;
     }
     if (!batch->out_dir) {
       fprintf(stderr, "[ERR]: Section \"%s\" missing \"out_dir\" definition!\n",
         batch->pretty_name);
+        return false;
     }
-    return false;
   } else {
+    bool bparam_nosection = false;
+
     BPARAM_NOSECTION(batch->in_dir,  "%s");
     BPARAM_NOSECTION(batch->out_dir, "%s");
     BPARAM_NOSECTION(batch->log_dir, "%s");
@@ -169,7 +172,10 @@ static bool validate_batch(const batch_t *batch) {
     BPARAM_NOSECTION(batch->audio_brate, "%u");
     BPARAM_NOSECTION(batch->video_brate, "%u");
     BPARAM_NOSECTION(batch->max_brate,   "%u");
-    return false;
+
+    if (bparam_nosection) {
+      return false;
+    }
   }
   return true;
 }
@@ -178,6 +184,52 @@ int lex_dispatch(parserdata *pdata) {
   batch_t *batch = batch_alloc();
   unsigned int line_no = 1;
 
+  /*!re2c
+    re2c:tags:expression = "pdata->@@";
+    re2c:eof = 0;
+    re2c:api:style = free-form;
+    re2c:define:YYCTYPE = char;
+    re2c:flags:tags = 1;
+
+    re2c:define:YYCURSOR = pdata->lex_cursor;
+    re2c:define:YYMARKER = pdata->lex_marker;
+    re2c:define:YYLIMIT = pdata->lex_limit;
+    re2c:define:YYFILL = "lex_feed(pdata) == 0";
+
+    // Operators and separators.
+    section_start = "[";
+    section_end = "]";
+    sp = " ";
+    tab = "\t";
+    wsp = (sp | tab)*;
+    eol = [\n];
+    eq = wsp "=" wsp;
+    quo = ["];
+
+    // Data types
+    str = ([^] \ eol)+;
+    fakebool = ('true' | 'false');
+    num = [0-9]+;
+    og = "original";
+
+    // Section
+    section_hdr = wsp section_start @param str @sep section_end wsp eol;
+
+    // Parameters
+    idir   = wsp "in_dir"               eq quo @param str      @sep quo wsp eol;
+    odir   = wsp "out_dir"              eq quo @param str      @sep quo wsp eol;
+    logdir = wsp "log_dir"              eq quo @param str      @sep quo wsp eol;
+    lang   = wsp "lang"                 eq quo @param str      @sep quo wsp eol;
+    subs   = wsp "hardsubs"             eq     @param fakebool @sep     wsp eol;
+    fonts  = wsp "extract_fonts"        eq     @param fakebool @sep     wsp eol;
+    vr     = wsp "video_target_bitrate" eq     @param num      @sep     wsp eol;
+    abr    = wsp "audio_target_bitrate" eq     @param num      @sep     wsp eol;
+    abr_og = wsp "audio_target_bitrate" eq     @param og       @sep     wsp eol;
+    asr_og = wsp "audio_sample_rate"    eq     @param og       @sep     wsp eol;
+    asr    = wsp "audio_sample_rate"    eq     @param num      @sep     wsp eol;
+    maxr   = wsp "max_bitrate"          eq     @param num      @sep     wsp eol;
+   */
+
 lex_loop: {
     const char *param, *sep;
     param = sep = NULL;
@@ -185,50 +237,6 @@ lex_loop: {
     pdata->lex_token = pdata->lex_cursor;
 
     /*!re2c
-      re2c:tags:expression = "pdata->@@";
-      re2c:eof = 0;
-      re2c:api:style = free-form;
-      re2c:define:YYCTYPE = char;
-      re2c:flags:tags = 1;
-
-      re2c:define:YYCURSOR = pdata->lex_cursor;
-      re2c:define:YYMARKER = pdata->lex_marker;
-      re2c:define:YYLIMIT = pdata->lex_limit;
-      re2c:define:YYFILL = "lex_feed(pdata) == 0";
-
-      // Operators and separators.
-      section_start = "[";
-      section_end = "]";
-      sp = " ";
-      tab = "\t";
-      wsp = (sp | tab)*;
-      eol = [\n];
-      eq = wsp "=" wsp;
-      quo = ["];
-
-      // Data types
-      str = ([^] \ eol)+;
-      fakebool = ('true' | 'false');
-      num = [0-9]+;
-      og = "original";
-
-      // Section
-      section_hdr = wsp section_start @param str @sep section_end wsp eol;
-
-      // Parameters
-      idir   = wsp "in_dir"               eq quo @param str      @sep quo wsp eol;
-      odir   = wsp "out_dir"              eq quo @param str      @sep quo wsp eol;
-      logdir = wsp "log_dir"              eq quo @param str      @sep quo wsp eol;
-      lang   = wsp "lang"                 eq quo @param str      @sep quo wsp eol;
-      subs   = wsp "hardsubs"             eq     @param fakebool @sep     wsp eol;
-      fonts  = wsp "extract_fonts"        eq     @param fakebool @sep     wsp eol;
-      vr     = wsp "video_target_bitrate" eq     @param num      @sep     wsp eol;
-      abr    = wsp "audio_target_bitrate" eq     @param num      @sep     wsp eol;
-      abr_og = wsp "audio_target_bitrate" eq     @param og       @sep     wsp eol;
-      asr_og = wsp "audio_sample_rate"    eq     @param og       @sep     wsp eol;
-      asr    = wsp "audio_sample_rate"    eq     @param num      @sep     wsp eol;
-      maxr   = wsp "max_bitrate"          eq     @param num      @sep     wsp eol;
-
       * {
         fprintf(stderr, "[ERR]: Couldn't parse line %u!\n", line_no);
         if (batch->pretty_name) {
@@ -242,6 +250,7 @@ lex_loop: {
       $ {
         DEBUG(print_batch_inistyle(batch));
         if (!validate_batch(batch)) {
+          DEBUG(WHERED("eof !validbatch"));
           batch_free(batch);
           return -1;
         } else {
@@ -254,6 +263,7 @@ lex_loop: {
         DEBUG(print_batch_inistyle(batch));
 
         if (!validate_batch(batch)) {
+          DEBUG(WHERED("section !validbatch"));
           batch_free(batch);
           return -1;
         }
@@ -274,7 +284,7 @@ lex_loop: {
       lang   { TAG_SSLURP(batch->lang,    param, sep);        LEX_LOOP; }
 
       subs   { TAG_BOOLISHSLURP(batch->do_subs,    param);    LEX_LOOP; }
-      fonts  { TAG_BOOLSLURP(batch->extract_fonts, param);    LEX_LOOP; }
+      fonts  { TAG_BOOLISHSLURP(batch->extract_fonts, param); LEX_LOOP; }
 
       vr     { TAG_UINTSLURP(batch->video_brate, param, sep); LEX_LOOP; }
       abr    { TAG_UINTSLURP(batch->audio_brate, param, sep); LEX_LOOP; }
@@ -302,7 +312,7 @@ int lex_file(FILE *f, const char *fname) {
       fclose(pdata.conf_file);
     }
     if (lexstat != 0) {
-      die("Error parsing config file named \"%s\"\n", lexstat, fname);
+      die("Error parsing batch file named \"%s\"\n", lexstat, fname);
     } else {
       return lexstat;
     }
