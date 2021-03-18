@@ -6,6 +6,7 @@ env.Append(CCFLAGS="-O2 -Wall -Wextra")
 dbg = ARGUMENTS.get("debug", 0)
 afl = ARGUMENTS.get("afl", 0)
 iniprint = ARGUMENTS.get("iniprint", 0)
+Repository("/usr/include", "src")
 
 if int(afl):
     dbg = "1"
