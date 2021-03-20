@@ -1,7 +1,7 @@
 from sconutils import runpretty
 
 env = Environment()
-env.Append(CCFLAGS="-O2")
+env.Append(CCFLAGS="-O2 -Wall -Wextra")
 
 dbg = ARGUMENTS.get("debug", 0)
 afl = ARGUMENTS.get("afl", 0)
