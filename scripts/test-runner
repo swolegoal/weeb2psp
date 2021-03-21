@@ -7,20 +7,19 @@ git_root="$(git rev-parse --show-toplevel)"
 
 export CMOCKA_MESSAGE_OUTPUT='TAP'
 
-_python_runner() {
-  local IFS=$'\n'
-  for test in $(find "$git_root/src" "$git_root/t"  -name *.t); do
-    "$test"
-  done
-}
+_run_test() { "$1"; }
 
 python_runner() {
   local tap_fifo="$git_root/runner.tap"
-  rm -f "$tap_fifo"
-  mkfifo "$tap_fifo"
 
-  _python_runner > "$tap_fifo" &
-  tappy -v < "$tap_fifo"
+  local IFS=$'\n'
+  for test in $(find "$git_root/src" "$git_root/t"  -name *.t); do
+    rm -f "$tap_fifo"
+    mkfifo "$tap_fifo"
+
+    _run_test "$test" > "$tap_fifo" &
+    tappy -v < "$tap_fifo"
+  done
 }
 
 perl_runner() { cd "$git_root"; prove -v; }
