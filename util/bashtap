@@ -1,0 +1,3 @@
+#!/usr/bin/env bash
+
+. util/c-tap-harness/tests/tap/libtap.sh
