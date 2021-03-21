@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+read -d '' _usage <<EOUSAGE
+Usage: $0 tappy|prove
+EOUSAGE
+
+git_root="$(git rev-parse --show-toplevel)"
+
+export CMOCKA_MESSAGE_OUTPUT='TAP'
+
+_run_test() { "$1"; }
+
+python_runner() {
+  local tap_fifo="$git_root/runner.tap"
+
+  local IFS=$'\n'
+  for test in $(find "$git_root/src" "$git_root/t"  -name *.t); do
+    rm -f "$tap_fifo"
+    mkfifo "$tap_fifo"
+
+    _run_test "$test" > "$tap_fifo" &
+    tappy -v < "$tap_fifo"
+  done
+}
+
+perl_runner() { cd "$git_root"; prove -v; }
+
+test_guess() {
+  if [ -x $(which prove) ]; then
+    perl_runner
+  elif [ -x $(which tappy) ]; then
+    python_runner
+  fi
+}
+
+if [ -z "$1" ]; then
+  test_guess
+else
+  case "$1" in
+    'tappy')
+      python_runner
+      ;;
+    'prove')
+      perl_runner
+      ;;
+    *)
+      (cat <<<"$_usage" >&2)
+      exit 1
+      ;;
+  esac
+fi
