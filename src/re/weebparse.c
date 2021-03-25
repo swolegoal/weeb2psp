@@ -313,8 +313,7 @@ int lex_file(FILE *f, const char *fname) {
     }
     if (lexstat != 0) {
       die("Error parsing batch file named \"%s\"\n", lexstat, fname);
-    } else {
-      return lexstat;
     }
+    return lexstat;
   }
 }
