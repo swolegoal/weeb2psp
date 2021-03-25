@@ -4,6 +4,7 @@ Usage: $0 tappy|prove
 EOUSAGE
 
 git_root="$(git rev-parse --show-toplevel)"
+test_dirs=( "$git_root/src/t" "$git_root/t" )
 
 export CMOCKA_MESSAGE_OUTPUT='TAP'
 
@@ -13,7 +14,7 @@ python_runner() {
   local tap_fifo="$git_root/runner.tap"
 
   local IFS=$'\n'
-  for test in $(find "$git_root/src" "$git_root/t"  -name *.t); do
+  for test in $(find ${test_dirs[@]} -name *.t); do
     rm -f "$tap_fifo"
     mkfifo "$tap_fifo"
 
@@ -22,7 +23,7 @@ python_runner() {
   done
 }
 
-perl_runner() { cd "$git_root"; prove -v; }
+perl_runner() { cd "$git_root"; prove -v ${test_dirs[@]}; }
 
 test_guess() {
   if [ -x $(which prove) ]; then
