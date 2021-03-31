@@ -11,6 +11,7 @@ export CMOCKA_MESSAGE_OUTPUT='TAP'
 _run_test() { "$1"; }
 
 python_runner() {
+  cd "$git_root"
   local tap_fifo="$git_root/runner.tap"
 
   local IFS=$'\n'
