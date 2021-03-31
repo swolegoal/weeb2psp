@@ -20,6 +20,7 @@ audio_sample_rate = 0
 [Hunter x Hunter]
 in_dir = "batches/hxh/in"
 out_dir = "batches/hxh/out"
+log_dir = "batches/hxh/log"
 lang = "eng"
 hardsubs = true
 extract_fonts = true
