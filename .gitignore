@@ -13,6 +13,7 @@ build/*
 *.out
 
 # Debug stuffs
+core.*
 vgcore.*
 afl-fuzzing
 
