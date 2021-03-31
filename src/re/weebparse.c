@@ -9,6 +9,11 @@
 #include "weebtypes.h"
 #include "weebutil.h"
 
+#ifdef MOCKA_TESTVARS
+  #include "test_weebparse.h"
+  static int _batch_no = -2;
+#endif
+
 typedef struct {
   FILE    *conf_file;
   char    *buffer;
@@ -60,6 +65,10 @@ static inline batch_t *batch_alloc() {
   b->video_brate = 0;
   b->max_brate   = 0;
 
+  #ifdef MOCKA_TESTVARS
+    _batch_no++;
+  #endif
+
   return b;
 }
 
@@ -92,7 +101,8 @@ static inline void lex_free(parserdata *pdata) {
   free(pdata->buffer);
 }
 
-static void print_batch_inistyle(const batch_t *batch) {
+#if defined INI_PRINT && ! defined MOCKA_TESTVARS
+static void _print_batch_inistyle(const batch_t *batch) {
   if (batch->pretty_name) {
     printf("\n[%s]\n", batch->pretty_name);
     assert(batch->in_dir && batch->out_dir);
@@ -144,6 +154,7 @@ static void print_batch_inistyle(const batch_t *batch) {
       printf("max_bitrate = %u\n", batch->max_brate);
   }
 }
+#endif
 
 static bool validate_batch(const batch_t *batch) {
   if (batch->pretty_name) {
@@ -248,7 +259,7 @@ lex_loop: {
       }
 
       $ {
-        DEBUG(print_batch_inistyle(batch));
+        DEBUG(PRINT_BATCH_INISTYLE(batch));
         if (!validate_batch(batch)) {
           DEBUG(WHERED("eof !validbatch"));
           batch_free(batch);
@@ -260,7 +271,7 @@ lex_loop: {
       }
 
       section_hdr {
-        DEBUG(print_batch_inistyle(batch));
+        DEBUG(PRINT_BATCH_INISTYLE(batch));
 
         if (!validate_batch(batch)) {
           DEBUG(WHERED("section !validbatch"));

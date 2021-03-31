@@ -2,6 +2,14 @@
 
 int lex_file(FILE *f, const char *fname);
 
+#ifndef PRINT_BATCH_INISTYLE
+  #ifdef MOCKA_TESTVARS
+    #define PRINT_BATCH_INISTYLE(b)  { test_batch_inistyle(b, _batch_no); }
+  #else
+    #define PRINT_BATCH_INISTYLE(b)  { _print_batch_inistyle(b); }
+  #endif
+#endif
+
 #ifdef DEBUG_PRINT
 #define INI_PRINT
 #endif

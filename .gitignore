@@ -11,6 +11,8 @@ src/weebparse.c
 build/*
 *.o
 *.out
+src/t/test_cmocka.t
+src/t/test_weebparse_good1.t
 
 # Debug stuffs
 core.*

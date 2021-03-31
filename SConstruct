@@ -33,14 +33,20 @@ if "build/parsebed" in COMMAND_LINE_TARGETS:
 
 elif "mocka" in COMMAND_LINE_TARGETS:
     env.Append(LIBS="cmocka")
-    mockatests = ["src/t/test_cmocka.t", "src/t/test_weebparse.t"]
+    env.Append(CCFLAGS="-g")
+    mockatests = ["src/t/test_cmocka.t", "src/t/test_weebparse_good1.t"]
     env.Alias("mocka", mockatests)
 
-    parsetest_src = parser_src + ["src/t/test_weebparse.c"]
-    test_weebparse = env.Program(
-        target="src/t/test_weebparse.t",
-        source=parsetest_src,
-        CFLAGS=env["CCFLAGS"] + ["-Wl,--wrap=print_batch_inistyle"],
+    test_defines = ["MOCKA_TESTVARS"]
+    if "CPP_DEFINES" in env:
+        test_defines += env["CPP_DEFINES"]
+
+    printwrap_def = test_defines + ["INI_PRINT"]
+    test_weebparse_good1 = env.Program(
+        target="src/t/test_weebparse_good1.t",
+        source=parser_src + ["src/t/test_weebparse.c"],
+        CFLAGS=env["CCFLAGS"],
+        CPPDEFINES=printwrap_def + ["TEST_WEEBPARSE_GOOD1"],
     )
 
     test_cmocka = env.Program(
