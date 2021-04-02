@@ -1,0 +1,80 @@
+[Hunter x Hunter]
+in_dir = "batches/hxh/in"
+out_dir =
+log_dir = "batches/hxh/log"
+lang = "eng"
+hardsubs = true
+extract_fonts = true
+audio_target_bitrate = 320
+audio_sample_rate = 48000
+video_target_bitrate = 3500
+max_bitrate = 6000
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+[Initial D]
+in_dir="batches/initiald/in"
+out_dir="batches/initiald/out"
+lang="eng"
+hardsubs=false
+audio_sample_rate = original
+
+[JoJo's Bizarre Adventure Seasons 1-5]
+in_dir = "batches/jojo/in"
+out_dir = "batches/jojo/out"
+lang = "eng"
+hardsubs = true
+extract_fonts = true
+
+[Umami]
+in_dir = "batches/umami/in"
+out_dir = "batches/umami/out"
+audio_sample_rate = 0
+

@@ -1,20 +1,22 @@
+import os
 import subprocess
+import typing
 from sys import stderr as STDERR
 from sys import exit
 
 
-def eprint(errmsg):
+def eprint(errmsg: str):
     """Prints `errmsg` to STDERR."""
     print(errmsg, file=STDERR)
 
 
-def die(errmsg):
+def die(errmsg: str):
     """Prints message and exits Python with a status of one."""
     eprint(errmsg)
     exit(1)
 
 
-def runpretty(args):
+def runpretty(args: str, verbose: bool = False):
     """
     Run a given program/shell command and print its output.
 
@@ -37,6 +39,8 @@ def runpretty(args):
     program's ``STDERR`` to the running Python iterpreter's ``STDERR``, cause
     Python to exit with a return status of 1.
     """
+    if verbose:
+        print("Running: " + args)
     proc = subprocess.Popen(
         args, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE
     )
@@ -48,3 +52,24 @@ def runpretty(args):
     std_output = proc.stdout.read()
     print(std_output.decode())
     return std_output
+
+
+def bldlexrs(re_prefix: str = "src"):
+    print('Generating re2c lexers from code in "src/re"...')
+
+    for fname in os.listdir(re_prefix + "/re"):
+        in_path = re_prefix + "/re/" + fname
+        out_path = re_prefix + "/" + fname
+        fext = os.path.splitext(fname)[-1]
+
+        if fext == ".c" or fext == ".cpp":
+            args = (
+                "re2c -i -W --verbose"
+                + " "
+                + in_path
+                + " "
+                + "-o"
+                + " "
+                + out_path
+            )
+            runpretty(args=args, verbose=True)

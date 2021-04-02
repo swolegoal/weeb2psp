@@ -10,7 +10,7 @@
 extern int errno;
 
 int main(int argc, char *argv[]) {
-  FILE *parseme;
+  FILE *parseme = NULL;
 
   if (argc < 2) {
     die("Usage:  %s CONF_FILE\n", 1, argv[0]);

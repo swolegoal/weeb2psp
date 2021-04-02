@@ -1,0 +1,7 @@
+hardsubs = false
+extract_fonts = true
+audio_target_bitrate = original
+audio_sample_rate = original
+video_target_bitrate = 3500
+max_bitrate = 6000
+

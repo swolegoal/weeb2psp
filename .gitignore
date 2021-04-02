@@ -11,8 +11,13 @@ src/weebparse.c
 build/*
 *.o
 *.out
+src/t/test_cmocka.t
+src/t/test_weebparse_good1.t
+src/t/test_weebparse_good2.t
+src/t/test_weebparse_badfiles.t
 
 # Debug stuffs
+core.*
 vgcore.*
 afl-fuzzing
 
@@ -27,3 +32,4 @@ tags
 
 # local barf bin
 poo/*
+patches/*

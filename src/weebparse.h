@@ -2,8 +2,20 @@
 
 int lex_file(FILE *f, const char *fname);
 
-// Give Scons "print=1" flag to build with DEBUG_PRINT.
+#ifndef PRINT_BATCH_INISTYLE
+  #ifdef MOCKA_TESTVARS
+    #define PRINT_BATCH_INISTYLE(b)  { test_batch_inistyle(b, _batch_no); }
+  #else
+    #define PRINT_BATCH_INISTYLE(b)  { _print_batch_inistyle(b); }
+  #endif
+#endif
+
 #ifdef DEBUG_PRINT
+#define INI_PRINT
+#endif
+
+// Give Scons "iniprint=1" flag to build with INI_PRINT.
+#ifdef INI_PRINT
 #define DEBUG(x) x
 #else
 #define DEBUG(x)
