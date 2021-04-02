@@ -19,7 +19,6 @@ if int(dbg):
 if int(iniprint):
     env.Append(CPPDEFINES=["INI_PRINT"])
 
-
 # Build C lexer state machines
 bldlexrs()
 
@@ -28,31 +27,60 @@ parser_src = ["src/weebparse.c", "src/weebutil.c"]
 parsebed_src = ["src/parsebed.c"] + parser_src
 
 # Program Targets
-if "build/parsebed" in COMMAND_LINE_TARGETS:
+if (
+    "build/parsebed" in COMMAND_LINE_TARGETS
+    or "parsebed" in COMMAND_LINE_TARGETS
+):
+    env.Alias("parsebed", ["build/parsebed"])
     parsebed = env.Program(target="build/parsebed", source=parsebed_src)
 
 elif "mocka" in COMMAND_LINE_TARGETS:
     env.Append(LIBS="cmocka")
     env.Append(CCFLAGS="-g")
-    mockatests = ["src/t/test_cmocka.t", "src/t/test_weebparse_good1.t"]
+    mockatests = [
+        "src/t/test_cmocka.t",
+        "src/t/test_weebparse_good1.t",
+        "src/t/test_weebparse_good2.t",
+        "src/t/test_weebparse_badfiles.t",
+    ]
     env.Alias("mocka", mockatests)
 
-    test_defines = ["MOCKA_TESTVARS"]
+    lextest_defines = ["MOCKA_TESTVARS"]
     if "CPP_DEFINES" in env:
-        test_defines += env["CPP_DEFINES"]
+        lextest_defines += env["CPP_DEFINES"]
+    printwrap_def = lextest_defines + ["INI_PRINT"]
 
-    printwrap_def = test_defines + ["INI_PRINT"]
-    test_weebparse_good1 = env.Program(
-        target="src/t/test_weebparse_good1.t",
-        source=parser_src + ["src/t/test_weebparse.c"],
+    twg1_env = env.Clone(
         CFLAGS=env["CCFLAGS"],
         CPPDEFINES=printwrap_def + ["TEST_WEEBPARSE_GOOD1"],
+        OBJPREFIX="twg1_",
+    )
+    test_weebparse_good1 = twg1_env.Program(
+        target="src/t/test_weebparse_good1.t",
+        source=parser_src + ["src/t/test_weebparse.c"],
+    )
+
+    twg2_env = env.Clone(
+        CFLAGS=env["CCFLAGS"],
+        CPPDEFINES=printwrap_def + ["TEST_WEEBPARSE_GOOD2"],
+        OBJPREFIX="twg2_",
+    )
+    test_weebparse_good2 = twg2_env.Program(
+        target="src/t/test_weebparse_good2.t",
+        source=parser_src + ["src/t/test_weebparse.c"],
+    )
+
+    test_weebparse_badfiles = env.Program(
+        target="src/t/test_weebparse_badfiles.t",
+        source=parser_src + ["src/t/test_weebparse_badfiles.c"],
+        CFLAGS=env["CCFLAGS"],
     )
 
     test_cmocka = env.Program(
         target="src/t/test_cmocka.t", source=["src/t/test_cmocka.c"]
     )
 else:
+    env.Alias("weeb2psp", ["build/weeb2psp"])
     weeb2psp = env.Program(
         target="build/weeb2psp",
         source=["src/weeb2psp.c", "src/weebutil.c", "src/weebfiles.c"],

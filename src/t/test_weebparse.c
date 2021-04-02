@@ -1,15 +1,19 @@
 #include <stdio.h>
 
+#include <errno.h>
+#include <setjmp.h>
 #include <stdarg.h>
 #include <stddef.h>
-#include <setjmp.h>
 #include <stdint.h>
+#include <string.h>
 #include <cmocka.h>
 
 #include "weebparse.h"
 #include "weebtypes.h"
 #include "weebutil.h"
 #include "test_weebparse.h"
+
+extern int errno;
 
 void _ini_asserts(const batch_t *b, const char *pn, const char *idir,
                   const char *odir, const char *ldir, const char *lang,
@@ -48,7 +52,13 @@ void test_batch_inistyle(const batch_t *batch, int batch_no) {
 static void test_batch_goodfile(void **state) {
   (void) state;
   FILE *good_file = fopen(BATCHFILE, "r");
-  lex_file(good_file, BATCHFILE);
+  if (good_file == NULL) {
+    fail_msg("%s: Error %d, can't open \"%s\": %s!\n",
+             BATCHFILE, errno, BATCHFILE, strerror(errno));
+  }
+
+  int rv = lex_file(good_file, BATCHFILE);
+  assert_int_equal(rv, 0);
 }
 
 int main(void) {

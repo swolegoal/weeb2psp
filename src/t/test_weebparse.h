@@ -43,7 +43,28 @@ void _ini_asserts(const batch_t *b, const char *pn, const char *idir,
       }                                                                        \
     }
 
-// #elif defined TEST_WEEBPARSE_GOOD2
+#elif defined TEST_WEEBPARSE_GOOD2
+  #define BATCHFILE  "batch-examples/good2.batch"
+  #define B_ENTRIES  8194
+
+  #define INISTYLE_ASSERTS(b)  {                                               \
+      switch (batch_no % 2) {                                                  \
+        case 0:                                                                \
+          assert_null(b->log_dir);                                             \
+          assert_non_null(b->lang);                                            \
+          _ini_asserts(b, "Initial D", "batches/initiald/in",                  \
+                      "batches/initiald/out", NULL, "eng", 0, -1, 0, 0, 0, 0); \
+          break;                                                               \
+        case 1:                                                                \
+          assert_null(b->log_dir);                                             \
+          assert_non_null(b->lang);                                            \
+          _ini_asserts(b, "JoJo's Bizarre Adventure Seasons 1-5",              \
+                      "batches/jojo/in", "batches/jojo/out", "", "eng", 1, 1,  \
+                      0, 0, 0, 0);                                             \
+          break;                                                               \
+          assert_in_range(batch_no, 0, B_ENTRIES - 1);                         \
+      }                                                                        \
+    }
 #else
   #error "No print_batch_inistyle injection test defined!!"
 #endif
