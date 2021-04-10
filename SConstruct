@@ -1,8 +1,10 @@
 from sconutils import runpretty, bldlexrs
 
+git_root = runpretty("git rev-parse --show-toplevel").decode()
+print(git_root)
 env = Environment()
-env.Append(CCFLAGS="-O2 -Wall -Wextra")
-env.Append(LIBPATH=["/usr/lib", "/usr/local/lib", "build"])
+env.Append(CCFLAGS="-O2 -Wall -Wextra -std=c99")
+env.Append(LIBPATH=["/usr/lib", "/usr/local/lib", (git_root + "/build")])
 
 dbg = ARGUMENTS.get("debug", 0)
 afl = ARGUMENTS.get("afl", 0)

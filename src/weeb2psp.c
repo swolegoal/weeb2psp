@@ -14,7 +14,11 @@
 #include <sys/stat.h>
 
 //Make portable later
-#include <linux/limits.h>  // for PATH_MAX
+#if defined __linux__
+  #include <linux/limits.h>  // for PATH_MAX
+#elif ! defined PATH_MAX
+  #define PATH_MAX _POSIX_PATH_MAX
+#endif
 
 extern int errno;
 
